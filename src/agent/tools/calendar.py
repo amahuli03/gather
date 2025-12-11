@@ -258,9 +258,32 @@ def create_create_event_tool(ctx: ToolContext):
         import re
         import json
 
-        # Check if it's key=value format FIRST (most common): user_id="me", title="Dinner", ...
-        # This needs to be checked before comma-separated to avoid conflicts
-        if user_id and '=' in user_id and ('title=' in user_id or 'start_iso=' in user_id or 'end_iso=' in user_id) and not title:
+        # FIRST: Try to parse as JSON from any parameter that looks like JSON
+        # LangChain sometimes passes JSON to user_id, title, or other parameters
+        json_str = None
+        if user_id and isinstance(user_id, str) and user_id.strip().startswith('{'):
+            json_str = user_id
+        elif title and isinstance(title, str) and title.strip().startswith('{'):
+            json_str = title
+        elif start_iso and isinstance(start_iso, str) and start_iso.strip().startswith('{'):
+            json_str = start_iso
+        
+        if json_str:
+            try:
+                params = json.loads(json_str)
+                # Extract all values from JSON, using empty string as default
+                user_id = params.get('user_id', '')
+                title = params.get('title', '')
+                start_iso = params.get('start_iso', '')
+                end_iso = params.get('end_iso', '')
+                description = params.get('description', '')
+                location = params.get('location', '')
+            except (json.JSONDecodeError, ValueError):
+                pass  # Fall through to other parsing methods
+
+        # Check if it's key=value format: user_id="me", title="Dinner", ...
+        # This needs to be checked after JSON parsing
+        if user_id and isinstance(user_id, str) and '=' in user_id and ('title=' in user_id or 'start_iso=' in user_id or 'end_iso=' in user_id) and not title:
             # Extract all parameters using regex
             match = re.search(r'user_id=["\']([^"\']+)["\']', user_id)
             extracted_user_id = match.group(1) if match else ""
@@ -288,7 +311,7 @@ def create_create_event_tool(ctx: ToolContext):
             user_id = extracted_user_id
 
         # Check if it's comma-separated format: "me", "Dinner", "2025-12-03T18:00:00", "2025-12-03T20:00:00", "", ""
-        elif user_id and ',' in user_id and not title and '=' not in user_id:
+        elif user_id and isinstance(user_id, str) and ',' in user_id and not title and '=' not in user_id and not user_id.strip().startswith('{'):
             parts = [p.strip().strip('"').strip("'") for p in user_id.split(',')]
             if len(parts) >= 4:
                 user_id = parts[0]
@@ -299,19 +322,6 @@ def create_create_event_tool(ctx: ToolContext):
                     description = parts[4]
                 if len(parts) >= 6:
                     location = parts[5]
-
-        # Try to parse as JSON (e.g., '{"user_id": "me", "title": "Dinner", ...}')
-        elif user_id and user_id.strip().startswith('{') and not title:
-            try:
-                params = json.loads(user_id)
-                user_id = params.get('user_id', '')
-                title = params.get('title', '')
-                start_iso = params.get('start_iso', '')
-                end_iso = params.get('end_iso', '')
-                description = params.get('description', '')
-                location = params.get('location', '')
-            except json.JSONDecodeError:
-                pass  # Fall through
 
         # Legacy regex parsing (shouldn't be needed anymore but kept for safety)
         if user_id and ('title=' in user_id or 'start_iso=' in user_id) and not title:
@@ -339,6 +349,21 @@ def create_create_event_tool(ctx: ToolContext):
         # Use user_id from calendar client if not provided
         if not user_id or user_id.strip() == "":
             user_id = ctx.calendar_client.user_id
+        
+        # Validate required parameters
+        if not title or not title.strip():
+            return "Error: Event title is required. Please provide a title for the event."
+        if not start_iso or not start_iso.strip():
+            return "Error: Start time is required. Please provide start_iso in ISO format (YYYY-MM-DDTHH:MM:SS)."
+        if not end_iso or not end_iso.strip():
+            return "Error: End time is required. Please provide end_iso in ISO format (YYYY-MM-DDTHH:MM:SS)."
+        
+        # Clean up parameters (strip whitespace)
+        title = title.strip()
+        start_iso = start_iso.strip()
+        end_iso = end_iso.strip()
+        description = description.strip() if description else ""
+        location = location.strip() if location else ""
         
         try:
             event_id = ctx.calendar_client.create_event(title, start_iso, end_iso, description, location)
@@ -470,6 +495,22 @@ def create_parse_date_tool(ctx: ToolContext):
                 saturday = today + timedelta(days=days_until_saturday)
                 return f"{saturday.strftime('%Y-%m-%d')}T{time_str}"
             
+            # Extract time from "at" expressions before parsing date (e.g., "December 29, 2025 at 19:00")
+            extracted_time = None
+            date_without_time = date_description
+            if re.search(r'\bat\b', date_description, re.IGNORECASE):
+                parts = re.split(r'\bat\b', date_description, maxsplit=1, flags=re.IGNORECASE)
+                if len(parts) > 1:
+                    date_without_time = parts[0].strip()
+                    time_part = parts[1].strip()
+                    try:
+                        extracted_time = _parse_time(time_part)
+                    except:
+                        pass  # If time parsing fails, use default_time
+            
+            # Remove ordinal suffixes (st, nd, rd, th) from dates (e.g., "December 29th" → "December 29")
+            date_cleaned = re.sub(r'(\d+)(st|nd|rd|th)\b', r'\1', date_without_time, flags=re.IGNORECASE)
+            
             # Try to parse as a full date string first (e.g., "December 7, 2023 11:00 AM")
             # This handles cases where the agent receives a formatted date from previous context
             date_formats = [
@@ -484,13 +525,43 @@ def create_parse_date_tool(ctx: ToolContext):
             
             for fmt in date_formats:
                 try:
-                    parsed = datetime.strptime(date_description.strip(), fmt)
+                    parsed = datetime.strptime(date_cleaned.strip(), fmt)
                     # Extract time if it was in the format
                     if "%I:%M %p" in fmt or "%H:%M" in fmt:
                         time_str = parsed.strftime("%H:%M:%S")
+                    elif extracted_time:
+                        # Use extracted time from "at" expression
+                        time_str = extracted_time
                     return f"{parsed.strftime('%Y-%m-%d')}T{time_str}"
                 except ValueError:
                     continue
+            
+            # Try parsing dates without year (e.g., "December 29" or "December 29th")
+            # Assume current year if date hasn't passed, otherwise next year
+            date_formats_no_year = [
+                "%B %d",  # "December 29"
+                "%b %d",  # "Dec 29"
+            ]
+            
+            for fmt in date_formats_no_year:
+                try:
+                    parsed = datetime.strptime(date_cleaned.strip(), fmt)
+                    # Replace year with current year
+                    parsed = parsed.replace(year=today.year)
+                    # If the date has already passed this year, use next year
+                    if parsed < today:
+                        parsed = parsed.replace(year=today.year + 1)
+                    
+                    # Use extracted time if available, otherwise use default_time
+                    if extracted_time:
+                        time_str = extracted_time
+                    return f"{parsed.strftime('%Y-%m-%d')}T{time_str}"
+                except ValueError:
+                    continue
+            
+            # If we extracted a time but couldn't parse the date, use it for the time
+            if extracted_time:
+                time_str = extracted_time
             
             # Handle day names (Monday, Tuesday, etc.)
             day_names = {
