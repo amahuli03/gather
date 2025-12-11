@@ -376,6 +376,40 @@ def create_create_event_tool(ctx: ToolContext):
     
     return create_calendar_event
 
+def create_update_event_location_tool(ctx: ToolContext):
+    """Factory function to create update event location tool."""
+    @tool("update_event_location", return_direct=False)
+    def update_event_location(event_id: str, location: str) -> str:
+        """
+        Update the location of an existing calendar event.
+        Use this when the user picks a specific place/restaurant and you want to add it to an existing event.
+        
+        Args:
+            event_id: The Google Calendar event ID (from create_calendar_event response)
+            location: The location to set (e.g., address or place name)
+        
+        Returns:
+            Confirmation message
+        """
+        if ctx.calendar_client is None:
+            return "Calendar client not configured."
+        
+        if not event_id or not event_id.strip():
+            return "Error: Event ID is required."
+        if not location or not location.strip():
+            return "Error: Location is required."
+        
+        try:
+            success = ctx.calendar_client.update_event_location(event_id.strip(), location.strip())
+            if success:
+                return f"Successfully updated event location to: {location}"
+            else:
+                return f"Failed to update event location. Make sure the event ID is correct and you're using Google Calendar."
+        except Exception as e:
+            return f"Error updating event location: {str(e)}"
+    
+    return update_event_location
+
 def create_parse_date_tool(ctx: ToolContext):
     """Factory function to create date parsing tool."""
     @tool("parse_date", return_direct=False)

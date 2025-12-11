@@ -10,6 +10,7 @@ from src.utils.config import load_config, get_env
 from src.integrations.weather_api import OpenWeatherClient
 from src.integrations.n8n_api import N8NClient
 from src.integrations.calendar_api import CalendarClient
+from src.integrations.maps_api import MapsClient
 from src.integrations.google_auth import is_authenticated, get_authorization_url, complete_authorization_with_code
 from src.agent.types import ToolContext
 from src.agent.coordinator import run_task
@@ -73,22 +74,33 @@ if "tool_context" not in st.session_state:
     ow_key = get_env("OPENAI_API_KEY")
     w_key = get_env("OPENWEATHERMAP_API_KEY")
     n8n_url = get_env("N8N_WEBHOOK_URL")
+    maps_key = get_env("GOOGLE_PLACES_API_KEY")
     
     # Create clients
     weather_client = OpenWeatherClient(api_key=w_key) if w_key else None
     n8n_client = N8NClient(webhook_url=n8n_url) if n8n_url else None
     calendar_client = CalendarClient(user_id="me")
+    maps_client = MapsClient(api_key=maps_key) if maps_key else None
     
     # Create tool context
     st.session_state.tool_context = ToolContext(
         weather_client=weather_client,
         n8n_client=n8n_client,
         calendar_client=calendar_client,
+        maps_client=maps_client,
     )
     
     # Check for required API key
     if not ow_key:
         st.warning("⚠️ OPENAI_API_KEY missing. The agent will not be able to run.")
+else:
+    # Check if existing tool_context has maps_client (for backward compatibility)
+    if not hasattr(st.session_state.tool_context, 'maps_client'):
+        # Update existing tool_context with maps_client
+        load_config()
+        maps_key = get_env("GOOGLE_PLACES_API_KEY")
+        maps_client = MapsClient(api_key=maps_key) if maps_key else None
+        st.session_state.tool_context.maps_client = maps_client
 
 # Sidebar for settings
 with st.sidebar:
@@ -172,6 +184,11 @@ with st.sidebar:
         st.write("✅ n8n configured")
     else:
         st.write("⚠️ n8n not configured")
+    
+    if hasattr(st.session_state.tool_context, 'maps_client') and st.session_state.tool_context.maps_client:
+        st.write("✅ Maps/Places API configured")
+    else:
+        st.write("⚠️ Maps/Places API not configured (add GOOGLE_PLACES_API_KEY to .env)")
     
     calendar_status = "✅ Google Calendar" if is_auth else "⚠️ Local Calendar (JSON)"
     st.write(calendar_status)
