@@ -10,9 +10,11 @@ from src.agent.tools.calendar import (
     create_get_events_tool,
     create_find_free_times_tool,
     create_create_event_tool,
+    create_update_event_location_tool,
     create_parse_date_tool
 )
 from src.agent.tools.n8n_client import create_n8n_tool
+from src.agent.tools.maps import create_search_places_tool, create_get_place_details_tool
 from src.agent.types import ToolContext
 
 def build_agent(ctx: ToolContext, memory: Optional[ConversationBufferWindowMemory] = None):
@@ -26,6 +28,9 @@ def build_agent(ctx: ToolContext, memory: Optional[ConversationBufferWindowMemor
         create_get_events_tool(ctx),
         create_find_free_times_tool(ctx),
         create_create_event_tool(ctx),
+        create_update_event_location_tool(ctx),
+        create_search_places_tool(ctx),
+        create_get_place_details_tool(ctx),
         create_n8n_tool(ctx),
     ]
     
@@ -68,6 +73,13 @@ IMPORTANT INSTRUCTIONS:
   * Provide Final Answer immediately - do NOT call the tool again
 - Break down complex requests into steps. For example, "warmest day this week" requires: 1) Get forecast for the week ONCE, 2) Compare temperatures in the data you received, 3) Identify the warmest day, 4) Provide Final Answer
 - Always use the appropriate tool - use get_weather_forecast for multi-day comparisons, use check_weather for current conditions.
+- For Maps/Places API usage:
+  * Use search_places when the user asks for suggestions or wants to find places (e.g., "find restaurants", "suggest places to go")
+  * Do NOT use search_places if the user provides a specific location/address - they already know where they want to go
+  * When suggesting places, always provide address, phone number, and website if available
+  * Remember the location context from previous messages (e.g., if user mentioned "Wilmington, DE" earlier, use that in searches)
+  * If user asks for a specific type after initial suggestions (e.g., "I'm looking for Mexican food"), search for that type in the remembered location
+  * When a user picks a restaurant/place from your suggestions, use update_event_location to add that location to the relevant calendar event
 - CRITICAL: After calling ANY tool and receiving data, you MUST analyze that data and provide a Final Answer. DO NOT call the same tool again with the same parameters.
 - For scheduling/calendar requests:
   - If user explicitly asks to "put it on my calendar", "schedule it", "add it to my calendar", "create an event", etc.:

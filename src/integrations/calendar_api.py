@@ -263,6 +263,41 @@ class CalendarClient:
             traceback.print_exc()
             return None
 
+    def update_event_location(self, event_id: str, location: str) -> bool:
+        """
+        Update the location of an existing Google Calendar event.
+        
+        Args:
+            event_id: The Google Calendar event ID
+            location: The location to set (e.g., address or place name)
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        if not self.use_google_calendar or not self.service:
+            return False
+        
+        try:
+            # Get the existing event
+            event = self.service.events().get(calendarId='primary', eventId=event_id).execute()
+            
+            # Update the location
+            event['location'] = location
+            
+            # Update the event
+            updated_event = self.service.events().update(
+                calendarId='primary',
+                eventId=event_id,
+                body=event
+            ).execute()
+            
+            return True
+        except Exception as e:
+            print(f"Error updating event location: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def add_event(self, start_iso: str, end_iso: str, title: str) -> None:
         """Legacy method - creates event using create_event."""
         self.create_event(title, start_iso, end_iso)
