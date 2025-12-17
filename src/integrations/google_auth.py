@@ -160,3 +160,24 @@ def get_calendar_service(user_id: str):
         print(f"Error building calendar service: {e}")
         return None
 
+def get_calendar_service_from_token(access_token: str):
+    """
+    Create Google Calendar service from an access token (e.g., from Apps Script).
+    Returns None if token is invalid.
+    """
+    try:
+        from google.oauth2.credentials import Credentials
+        
+        # Create credentials from the access token
+        # Apps Script tokens include the required scopes
+        creds = Credentials(
+            token=access_token,
+            scopes=SCOPES
+        )
+        
+        service = build('calendar', 'v3', credentials=creds)
+        return service
+    except Exception as e:
+        print(f"Error building calendar service from token: {e}")
+        return None
+

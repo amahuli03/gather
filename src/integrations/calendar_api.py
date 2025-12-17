@@ -1,14 +1,21 @@
 from datetime import datetime, timedelta
 from typing import List, Tuple, Optional
 from src.storage.json_storage import load_json, save_json
-from src.integrations.google_auth import get_calendar_service, is_authenticated
+from src.integrations.google_auth import get_calendar_service, get_calendar_service_from_token, is_authenticated
 
 class CalendarClient:
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, oauth_token: Optional[str] = None):
         self.user_id = user_id
         self.path = f"users/{self.user_id}/calendar.json"
-        self.use_google_calendar = is_authenticated(user_id)
-        self.service = get_calendar_service(user_id) if self.use_google_calendar else None
+        
+        # If OAuth token is provided (from Apps Script), use it
+        if oauth_token:
+            self.use_google_calendar = True
+            self.service = get_calendar_service_from_token(oauth_token)
+        else:
+            # Fall back to checking local authentication
+            self.use_google_calendar = is_authenticated(user_id)
+            self.service = get_calendar_service(user_id) if self.use_google_calendar else None
 
     def get_events(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[Tuple[str, str, str]]:
         """
@@ -203,9 +210,8 @@ class CalendarClient:
         if self.use_google_calendar and self.service:
             return self._create_google_event(title, start_iso, end_iso, description, location)
         else:
-            # Fallback to JSON storage
-            self.add_event(start_iso, end_iso, title)
-            return "local_event"
+            # Fallback to JSON storage - directly save to JSON, don't call add_event
+            return self._create_local_event(title, start_iso, end_iso, description, location)
 
     def _create_google_event(self, title: str, start_iso: str, end_iso: str,
                             description: str, location: str) -> Optional[str]:
@@ -298,6 +304,21 @@ class CalendarClient:
             traceback.print_exc()
             return False
 
+    def _create_local_event(self, title: str, start_iso: str, end_iso: str,
+                           description: str = "", location: str = "") -> str:
+        """Create event in local JSON storage."""
+        data = load_json(self.path, default={"events": []})
+        events = data.get("events", [])
+        
+        # Add new event
+        events.append([start_iso, end_iso, title, description, location])
+        
+        # Save back
+        data["events"] = events
+        save_json(self.path, data)
+        
+        return "local_event_" + str(len(events))
+    
     def add_event(self, start_iso: str, end_iso: str, title: str) -> None:
-        """Legacy method - creates event using create_event."""
-        self.create_event(title, start_iso, end_iso)
+        """Legacy method - creates event in local storage."""
+        self._create_local_event(title, start_iso, end_iso)
