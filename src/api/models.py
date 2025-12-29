@@ -8,6 +8,7 @@ class ChatRequest(BaseModel):
     message: str
     user_id: str = "me"  # Default to "me" if not provided
     context: Optional[dict] = None  # Optional context (e.g., current event, location)
+    oauth_token: Optional[str] = None  # OAuth access token from Apps Script (for Calendar API)
 
 
 class ChatResponse(BaseModel):

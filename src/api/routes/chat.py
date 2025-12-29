@@ -25,8 +25,8 @@ async def chat(
         ChatResponse with agent response and tool calls
     """
     try:
-        # Create user-specific tool context
-        ctx = get_user_tool_context(request.user_id, base_context)
+        # Create user-specific tool context (with OAuth token if provided)
+        ctx = get_user_tool_context(request.user_id, base_context, oauth_token=request.oauth_token)
         
         # Get or create memory for this user
         memory = get_memory(request.user_id, window_size=20)

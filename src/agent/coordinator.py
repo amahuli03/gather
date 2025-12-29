@@ -60,17 +60,22 @@ You have access to the following tools:
 {tools}
 
 IMPORTANT INSTRUCTIONS:
-- When users ask about "warmest day", "best weather", "good day for [activity]", or comparing days:
-  * Call get_weather_forecast ONCE with the location and number of days needed
-  * IMMEDIATELY analyze the forecast data you receive
-  * Compare temperatures, conditions, and identify the best day
-  * Provide your Final Answer right away - DO NOT call the tool again
-- For "this weekend" questions: 
+- DISTINGUISH between two types of requests:
+  1. WEATHER-ONLY: User asks about weather but does NOT ask to schedule (e.g., "what's the weather", "warmest day", "best weather")
+     * Call get_weather_forecast ONCE
+     * Analyze the data and provide Final Answer immediately
+     * DO NOT take scheduling actions
+  
+  2. WEATHER + SCHEDULING: User asks about weather AND wants to schedule (e.g., "find best time and schedule", "put it in my calendar", "schedule a hike")
+     * First, call get_weather_forecast ONCE to get weather data
+     * Use that data to determine the best day/time
+     * Then take ALL scheduling actions needed (check_availability, find_available_times, create_calendar_event)
+     * ONLY AFTER completing all scheduling actions, provide Final Answer
+     * DO NOT provide Final Answer until you have actually scheduled the event
+- For "this weekend" weather-only questions: 
   * Call get_weather_forecast ONCE (with location and days=5 or days=7)
-  * The forecast will include Saturday and Sunday - look for those days in the data you receive
-  * Compare Saturday vs Sunday: temperatures, conditions (clear sky is better than overcast)
-  * Identify which day is better for the activity (e.g., warmer and clearer is better for hiking)
-  * Provide Final Answer immediately - do NOT call the tool again
+  * The forecast will include Saturday and Sunday - compare them in your Final Answer
+  * Provide Final Answer immediately after getting the forecast
 - Break down complex requests into steps. For example, "warmest day this week" requires: 1) Get forecast for the week ONCE, 2) Compare temperatures in the data you received, 3) Identify the warmest day, 4) Provide Final Answer
 - Always use the appropriate tool - use get_weather_forecast for multi-day comparisons, use check_weather for current conditions.
 - For Maps/Places API usage:
@@ -95,11 +100,18 @@ IMPORTANT INSTRUCTIONS:
     * Use find_available_times to show options
     * DO NOT create an event - just show the available times
 - CRITICAL ANTI-LOOPING RULES:
-  * After calling a tool ONCE and receiving data, you MUST analyze that data and provide a Final Answer
   * NEVER call the same tool twice with the same parameters - if you already have the data, use it
   * If you see the same Observation result twice, you are looping - STOP and provide Final Answer immediately
-  * After getting weather forecast data, analyze it immediately and answer - do not call the tool again
-- CRITICAL: After getting all information needed, ALWAYS provide a Final Answer immediately
+  * After providing a Final Answer, DO NOT take additional Actions - the Final Answer ends the conversation
+  * If you write "Final Answer:" in your output, that MUST be the absolute last thing - no more Thoughts or Actions after that
+  * If the user asked you to schedule something, complete ALL scheduling steps BEFORE providing Final Answer
+- CRITICAL: Provide Final Answer ONLY after:
+  * For weather-only questions: After getting weather data
+  * For scheduling questions: After completing ALL scheduling actions (checking availability, creating event, etc.)
+- CRITICAL FORMAT: When providing Final Answer, your output MUST be:
+  Thought: I now know the final answer
+  Final Answer: [your answer here]
+  DO NOT write ANYTHING after the Final Answer line - no Thoughts, no Actions, nothing
 
 OUTPUT FORMAT RULES (STRICTLY FOLLOW):
 1. After each tool use, you MUST include "Thought:" before your next action
@@ -138,7 +150,8 @@ Thought:{agent_scratchpad}
             "Thought: I now know the final answer\n"
             "Final Answer: [your complete answer to the user]\n\n"
             "Do NOT write any text without the proper prefix (Thought:, Action:, Action Input:, or Final Answer:).\n"
-            "If you already have the information needed, provide the Final Answer NOW."
+            "If you provided a Final Answer, DO NOT write any Actions after it - the Final Answer ends the conversation.\n"
+            "If you need to take actions, do them BEFORE providing the Final Answer."
         )
 
     agent_executor = AgentExecutor(
@@ -146,8 +159,8 @@ Thought:{agent_scratchpad}
         tools=tools,
         verbose=True,  # Enable verbose to debug - check terminal/console for output
         handle_parsing_errors=handle_parsing_error,
-        max_iterations=6,  # Reduced to prevent excessive loops
-        max_execution_time=45  # 45 second timeout
+        max_iterations=8,  # Allow enough iterations for multi-step requests (weather + scheduling)
+        max_execution_time=60  # 60 second timeout for complex requests
     )
     return agent_executor
 

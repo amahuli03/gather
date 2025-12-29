@@ -1,5 +1,6 @@
 """Shared dependencies for FastAPI routes."""
 from functools import lru_cache
+from typing import Optional
 from src.utils.config import load_config, get_env
 from src.integrations.weather_api import OpenWeatherClient
 from src.integrations.n8n_api import N8NClient
@@ -38,12 +39,17 @@ def get_tool_context() -> ToolContext:
     )
 
 
-def get_user_tool_context(user_id: str, base_context: ToolContext) -> ToolContext:
+def get_user_tool_context(user_id: str, base_context: ToolContext, oauth_token: Optional[str] = None) -> ToolContext:
     """
     Create a ToolContext for a specific user.
     Calendar client needs user_id, so we create it here.
+    
+    Args:
+        user_id: User identifier
+        base_context: Base tool context
+        oauth_token: Optional OAuth access token from Apps Script
     """
-    calendar_client = CalendarClient(user_id=user_id)
+    calendar_client = CalendarClient(user_id=user_id, oauth_token=oauth_token)
     
     return ToolContext(
         weather_client=base_context.weather_client,
