@@ -13,3 +13,4 @@ cd "$SCRIPT_DIR"
 # Run FastAPI with uvicorn
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 
+

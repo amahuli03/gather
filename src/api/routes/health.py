@@ -10,3 +10,4 @@ async def health():
     """Health check endpoint."""
     return HealthResponse(status="healthy")
 
+

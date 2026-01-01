@@ -11,10 +11,22 @@ app = FastAPI(
 )
 
 # Configure CORS
-# TODO: Update allowed_origins with your frontend URL(s) when deploying
+# Allow Apps Script (script.google.com) and localhost for development
+allowed_origins = [
+    "https://script.google.com",
+    "https://script.googleusercontent.com",
+    "http://localhost:8000",  # Local development
+    "http://localhost:8501",  # Streamlit local
+]
+
+# Allow all origins in development, specific origins in production
+import os
+if os.getenv("ENVIRONMENT") != "production":
+    allowed_origins.append("*")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific frontend URLs
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
