@@ -77,7 +77,7 @@ pip install -r requirements.txt
 
 1. Copy the example environment file:
    ```bash
-   cp example.env .env
+   cp .env.example .env
    ```
 
 2. Edit `.env` and add your actual API keys:
@@ -186,7 +186,7 @@ You can deploy via the web console (no CLI required) or using the Google Cloud S
 8. Wait for deployment to complete
 9. Your API URL will be shown on the service page: `https://gather-api-xxxxx-uc.a.run.app`
 
-#### Option B: Deploy via gcloud CLI (Optional)
+#### Option B: Deploy via gcloud CLI 
 
 **Quick Deploy:**
 ```bash
@@ -364,4 +364,4 @@ gather-1/
 
 ## Support
 
-For issues and questions, please open an issue on GitHub.
+For issues and questions, please contact anisha.mahuli@gmail.com or open an issue on GitHub.
