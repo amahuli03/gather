@@ -44,6 +44,34 @@ User (Google Calendar)
   → Response back through the chain
 ```
 
+## Installation for End Users
+
+You can install Gather directly in your Google Calendar without any developer setup:
+
+1. **Visit the installation link:**
+   ```
+   https://script.google.com/home/projects/1p4A95gLWtTW55-gPTK47f26NP1x7v58vfNlmPDRsnTbe1L4veHyHvuL_/edit
+   ```
+
+2. **Install the add-on:**
+   - Click **"Deploy"** in the top menu
+   - Click **"Test deployments"**
+   - Find **"Version 3"** in the list
+   - Click **"Install"** next to Version 3
+
+3. **Authorize access:**
+   - Grant the requested permissions when prompted
+   - This allows Gather to access your Google Calendar
+
+4. **Start using Gather:**
+   - Open [Google Calendar](https://calendar.google.com)
+   - Look for **"Gather Assistant"** in the right sidebar
+   - Click on it to start chatting with your AI assistant!
+
+That's it! No coding or developer setup required. Gather is now ready to help you coordinate your schedule, check weather, find places, and more.
+
+---
+
 ## Quickstart Guide for Developers
 
 ### Prerequisites

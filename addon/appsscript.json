@@ -10,6 +10,9 @@
     "https://www.googleapis.com/auth/script.external_request",
     "https://www.googleapis.com/auth/userinfo.email"
   ],
+  "urlFetchWhitelist": [
+    "https://gather-api-983950629972.us-east1.run.app/*"
+  ],
   "addOns": {
     "common": {
       "name": "Gather Assistant",
