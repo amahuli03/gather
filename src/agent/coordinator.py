@@ -53,7 +53,9 @@ def build_agent(ctx: ToolContext, memory: Optional[ConversationBufferWindowMemor
     prompt = PromptTemplate.from_template("""
 You are a helpful assistant that can coordinate schedules and activities.
 
+IMPORTANT: Today's date is {today_date}. Always use this as the reference for "today", "tonight", "this Friday", etc.
 IMPORTANT: The current user ID is "{user_id}". Always use this user_id when calling calendar tools.
+IMPORTANT: ALWAYS use the parse_date tool to convert dates/times — NEVER guess or hardcode dates.
 {chat_history}
 
 You have access to the following tools:
@@ -139,7 +141,8 @@ Thought:{agent_scratchpad}
 """)
     
     # Format prompt with user_id and chat history
-    formatted_prompt = prompt.partial(user_id=user_id, chat_history=chat_history_str)
+    today_date = datetime.now().strftime("%A, %B %d, %Y")
+    formatted_prompt = prompt.partial(user_id=user_id, chat_history=chat_history_str, today_date=today_date)
     agent = create_react_agent(llm, tools, formatted_prompt)
 
     # Custom error handler to provide better guidance

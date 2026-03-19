@@ -217,33 +217,17 @@ class CalendarClient:
                             description: str, location: str) -> Optional[str]:
         """Create event in Google Calendar."""
         try:
-            # Ensure datetime is in RFC3339 format with timezone
-            # Google Calendar API requires timezone info
-            start_dt = start_iso
-            end_dt = end_iso
-
-            # If datetime doesn't have timezone info, add it
-            if 'T' in start_dt and not ('+' in start_dt or 'Z' in start_dt):
-                # Add timezone offset for America/New_York (EST/EDT)
-                # For simplicity, using UTC offset. Better: use pytz
-                from datetime import datetime
-                import time
-
-                # Get local timezone offset
-                is_dst = time.daylight and time.localtime().tm_isdst > 0
-                utc_offset = - (time.altzone if is_dst else time.timezone)
-                offset_hours = utc_offset // 3600
-                offset_minutes = (abs(utc_offset) % 3600) // 60
-                offset_str = f"{offset_hours:+03d}:{offset_minutes:02d}"
-
-                start_dt = f"{start_iso}{offset_str}"
-                end_dt = f"{end_iso}{offset_str}"
+            # Pass naive datetime (no offset) — the timeZone field tells
+            # Google Calendar how to interpret it, avoiding server-tz bugs.
+            import re
+            start_dt = re.sub(r'[Z]|[+-]\d{2}:\d{2}$', '', start_iso)
+            end_dt = re.sub(r'[Z]|[+-]\d{2}:\d{2}$', '', end_iso)
 
             event = {
                 'summary': title,
                 'start': {
                     'dateTime': start_dt,
-                    'timeZone': 'America/New_York',  # TODO: Make timezone configurable
+                    'timeZone': 'America/New_York',
                 },
                 'end': {
                     'dateTime': end_dt,
